@@ -1,8 +1,11 @@
 # About JAsioHost
+
 JAsioHost (JAH) is a Java interface to Steinberg's [Audio Stream Input/Output](http://en.wikipedia.org/wiki/Audio_Stream_Input/Output) (ASIO) API. It provides low-latecy (< 10ms) input and output access to the available audio hardware on **Windows**, replacing the need to use the outdated and slow Java Sound API.
 
+[TOC]
 
 ## Getting Started
+
 JAsioHost comes in two parts, `JAsioHost.jar` and `jasiohost.dll`. The former is the usual encapsulation of the classes comprising the JAH Java library, and the latter is the JAH interface to ASIO. The package of JAH is `com.synthbot.jasiohost`.
 
 The library can be quickly tested from the root directory of the project with `java -jar JAsioHost.jar -Djava.library.path=./`. The `ExampleHost` will launch a small GUI allowing you to select an available ASIO driver and use it to play a 440Hz tone. If you're not sure if you have the correct ASIO driver installed (usually soundcard-specific), then try using the excellent [ASIO4ALL](http://www.asio4all.com/) Universal ASIO Driver For WDM Audio.
@@ -14,8 +17,40 @@ The library can be quickly tested from the root directory of the project with `j
 
 If the JVM cannot find the dll, an [UnsatisfiedLinkError](http://docs.oracle.com/javase/1.4.2/docs/api/java/lang/UnsatisfiedLinkError.html) exception will be thrown.
 
+## Build
+
+> This section is written by AnClark.
+
+### Build JAsioHost library
+
+This Java program used JNI to call the ASIO APIs. It required `jasiohost32.dll` or `jasiohost64.dll` when running. So before you start, you should build it first.
+
+#### Requirements
+
++ JDK
+  + Assume that you install it in `C:\Program Files (x86)\Java\jdk1.6.0_31`
++ ASIO SDK 2: Download at the [Steinberg Developer Site](http://www.steinberg.net/sdk_downloads/ASIOSDK2.3.1.zip).
+  + Assume that you extract it to `D:\ASIOSDK2\`
++ MinGW
+  + Add the `<MinGW install path>\bin` to your `PATH`.
+
+You can also use a Cygwin/MSYS2 environment with `gcc` and `MinGW` installed.
+
+#### Start
+
+1. Edit `com\synthbot\jasiohost\build_win.bat`, and point the following two variables to your ASIO SDK and MinGW path:
+
+    ```bat
+    set ASIO_SDK_PATH=D:\Tempp\ASIO\Steinberg\ASIOSDK2.3_dc
+    set MINGW_PATH=D:\MinGW\bin
+    ```
+
+2. Run `com\synthbot\jasiohost\build_win.bat`. Built file `jasiohost{32|64}.dll` will be in the `_built` subdirectory.
+
+    If you use Cygwin/MSYS2, you can run `buildJah_win.sh` or `buildJar64_win.sh` there instead.
 
 ## Example
+
 The basic design pattern for using `JAsioHost` is as follows. `static` methods in `AsioDriver` are used to collect information about the available drivers. `getDriver` is called in order to load and instantiate a given driver. The `AsioDriver` can then be queried for channel state information. Audio buffers are created using `createBuffers`, before `start` is called. Callbacks are made from the driver to registered `AsioDriverListener` objects in order to submit input and retrieve output.
 
 ```Java
@@ -61,33 +96,35 @@ See the [ExampleHost](https://github.com/mhroth/jasiohost/blob/master/src/com/sy
 
 Note that you can only load one ASIO driver at time. This is a limitation of the original API (AFAIK).
 
-
 ## Note on Compilation
+
 If you are brave enough to try to compile the native component, please note the following helpful tips:
 
 * I use [Cygwin](http://www.cygwin.com/) to compile the library, and not Visual Studio. Because I am more familiar with the Unix toolchain. This makes some things more difficult. Unfortunate, but so be it.
 * You must [download](http://www.steinberg.net/en/company/developer.html) your own copy of the ASIO library. It cannot be distributed here due to licensing restrictions by Steinberg.
 
 In the ASIO library,
+
 * `./common/asiodrvr.cpp` is not necessary. Rename or remove it.
 * `./common/dllentry.cpp` is not necessary. Rename or remove it.
 * Line 219 of `./common/combase.h`, `#if WINVER < 0x0501`, should be replaced with `#if 0`. See [here](http://osdir.com/ml/audio.portaudio.devel/2006-09/msg00058.html) for more information.
 
-
 ## A Note about API Translation
+
 The `JAsioHost` API does not strictly reflect the original C++ API written by Steinberg. There are two reasons for this. The first is that some elements of the original API do not translate well due to language semantics. The second is that I felt that some things could be improved or simplified.
 
 An example of the former is that the native API refers to an audio buffer by using a `void` pointer. Java does not allow arrays to be referenced opaquely. `JAsioHost` therefore encapsulates an audio buffer by using a `ByteBuffer`, which exposes the raw bytes of the native buffer, but also allows other types to be read and written with relative ease.
 
 An example of the latter is the absence of the `ASIOBufferInfo` structure in Java. I simply added a reference to the audio buffer to the active `AsioChannel` objects. As the audio buffer conceptually belongs to a channel, this seemed to make sense, and also remove a superfluous class.
 
-
 ## License
+
 JAsioHost is released under the [Lesser Gnu Public License](http://www.gnu.org/licenses/lgpl.html) (LGPL). Basically, the library stays open source, but you can use if for whatever you want, including closed source applications. You must publicly credit the use of this library.
 
-
 ## Acknowledgements
+
 Many thanks to the following people for making JAsioHost possible:
+
 * [Steinberg](http://www.steinberg.net/en/home.html) for releasing ASIO and making good documentation! Of course the ASIO API belongs to them, and if you want to be able to compile the native source then you will need to [get the ASIO component](http://www.steinberg.net/en/company/3rd_party_developer.html) from them.
 * This project depends on [IASIOThisCallResolver](http://www.audiomulch.com/~rossb/code/calliasio/). Without it, this project would not be possible. All hail IASIOThisCallResolver. P.S. The reason for this is that I use Cygwin, gcc, MinGW in order to build the native component, not Visual Studio.
 * Steve Taylor of [http://toot.org.uk](http://toot.org.uk) for his help in testing out various ASIO drivers and assisting in the debugging process.
